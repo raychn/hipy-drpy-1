@@ -1,246 +1,156 @@
-/*
-@header({
-  searchable: 2,
-  filterable: 1,
-  quickSearch: 0,
-  title: '蓝莓短剧[短]',
-  lang: 'ds'
-})
-*/
+globalThis.yanzheng = function(HOST, rule) {
+    const firstRes = request(HOST, {
+        headers: rule.headers,
+        withHeaders: true,
+        redirect: false,
+        method: 'GET'
+    });    
+    const res = typeof firstRes === 'string' ? JSON.parse(firstRes) : firstRes;
+    const html = res.body || firstRes;    
+    if (!html.includes('人机验证') && !html.includes('防火墙正在检查您的访问')) {
+        return html;
+    }    
+    const setCookie = res['set-cookie'] || '';
+    let phpsessid = '';    
+    if (Array.isArray(setCookie)) {
+        for (const c of setCookie) {
+            if (c.includes('PHPSESSID')) {
+                phpsessid = c.split(';')[0].trim();
+                break;
+            }
+        }
+    } else if (setCookie.includes('PHPSESSID')) {
+        phpsessid = setCookie.split(';')[0].trim();
+    }    
+    if (phpsessid) {
+        rule.headers.cookie = phpsessid;
+        if (typeof rule_fetch_params !== 'undefined') {
+            rule_fetch_params.headers = {...rule.headers};
+        }
+    }    
+    const tokenMatch = html.match(/var token = encrypt\("([^"]+)"\)/);
+    if (!tokenMatch) return html;    
+    const encrypt = (str) => {
+        const staticchars = "PXhw7UT1B0a9kQDKZsjIASmOezxYG4CHo5Jyfg2b8FLpEvRr3WtVnlqMidu6cN";
+        let encodechars = "";        
+        for (let i = 0; i < str.length; i++) {
+            const idx = staticchars.indexOf(str[i]);
+            const code = idx === -1 ? str[i] : staticchars[(idx + 3) % 62];
+            encodechars += staticchars[Math.floor(Math.random() * 62)] + 
+                          code + 
+                          staticchars[Math.floor(Math.random() * 62)];
+        }        
+        try {
+            return btoa(encodechars);
+        } catch (e) {
+            if (typeof Buffer !== 'undefined') {
+                return Buffer.from(encodechars).toString('base64');
+            }
+            return encodechars;
+        }
+    };    
+    const value = encrypt(HOST);
+    const token = encrypt(tokenMatch[1]);
+    const postData = `value=${value}&token=${token}`;    
+    const verifyRes = request(`${rule.host}/robot.php`, {
+        headers: {
+            ...rule.headers,
+            'content-type': 'application/x-www-form-urlencoded',
+            'origin': rule.host,
+            'referer': HOST
+        },
+        withHeaders: true,
+        method: 'POST',
+        body: postData
+    });    
+    const verifyJson = typeof verifyRes === 'string' ? JSON.parse(verifyRes) : verifyRes;
+    let verifyBody;    
+    if (typeof verifyJson.body === 'string') {
+        try {
+            verifyBody = JSON.parse(verifyJson.body);
+        } catch {
+            verifyBody = {msg: 'error'};
+        }
+    } else {
+        verifyBody = verifyJson.body || verifyJson;
+    }    
+    if (verifyBody.msg === 'ok') {
+        const start = Date.now();
+        while (Date.now() - start < 1500) {}        
+        const finalRes = request(HOST, {
+            headers: rule.headers,
+            withHeaders: false,
+            redirect: false,
+            method: 'GET'
+        });        
+        return typeof finalRes === 'string' ? finalRes : (finalRes.body || finalRes);
+    }    
+    return html;
+};
 
+//发布页 https://www.jddzx.vip
 var rule = {
-    类型: '影视',
-    title: '蓝莓短剧[短]',
-    host: 'https://new.tianjinzhitongdaohe.com',
-    url: '/api/v1/app/screen/screenMovie?classify=fyclass&page=fypage',
-    searchUrl: '/api/v1/app/search/searchMovie',
+    title: '剧多多',
+    host: 'https://www.jddzx.cc',
+    url: '/vodshow/id/fyclass/page/fypage.html',
+    detailUrl: '/vod/fyid.html',
+    searchUrl: '/vodsearch.html?wd=**',
     searchable: 2,
-    quickSearch: 0,
+    quickSearch: 1,
     filterable: 1,
     headers: {
-        "Cache-Control": "no-cache",
-        "Content-Type": "application/json;charset=UTF-8",
-        "User-Agent": "okhttp/4.12.0"
+        'User-Agent': 'MOBILE_UA'
     },
-    timeout: 5000,
-    play_parse: true,
-    
-    class_parse: $js.toString(() => {
-        const url = 'https://new.tianjinzhitongdaohe.com/api/v1/app/screen/screenType';
-        const headers = {
-            "Cache-Control": "no-cache",
-            "Content-Type": "application/json;charset=UTF-8",
-            "User-Agent": "okhttp/4.12.0"
-        };
-        
-        try {
-            const response = request(url, {method: 'POST', headers: headers});
-            const data = JSON.parse(response);
-            const classes = [];
-            
-            if (data.data && data.data[0]?.children?.[0]?.children) {
-                data.data[0].children[0].children.forEach(vod => {
-                    classes.push({
-                        type_name: `${vod.name}`,
-                        type_id: vod.name
-                    });
-                });
-            }
-            
-            return JSON.stringify({
-                class: classes,
-                filters: {}
-            });
-        } catch (e) {
-            console.error("分类解析错误:", e);
-            return JSON.stringify({class: []});
-        }
-    }),
-    
+    class_name: '电影&剧集&动漫&综艺&短剧',
+    class_url: 'dianying&juji&dongman&zongyi&duanju',
+    lazy:"js:var html=JSON.parse(request(input).match(/r player_.*?=(.*?)</)[1]);var url=html.url;if(html.encrypt=='1'){url=unescape(url)}else if(html.encrypt=='2'){url=unescape(base64Decode(url))}if(/m3u8|mp4/.test(url)){input=url}else{input}",        
+    limit: 9,
+    double: false,
+    推荐: 'a.module-poster-item.module-item;a&&title;.module-item-pic&&img&&data-original;.module-item-note&&Text;a&&href',
+    一级二: 'a.module-poster-item.module-item;a&&title;.module-item-pic&&img&&data-original;.module-item-note&&Text;a&&href',
     一级: $js.toString(() => {
-        const input = typeof INPUT !== 'undefined' ? INPUT : '';
-        const page = typeof MY_PAGE !== 'undefined' ? MY_PAGE : 1;
-        const cid = input.includes('classify=') ? input.split('classify=')[1].split('&')[0] : '';
-        const headers = {
-            "Cache-Control": "no-cache",
-            "Content-Type": "application/json;charset=UTF-8",
-            "User-Agent": "okhttp/4.12.0"
-        };
-        
-        const payload = JSON.stringify({
-            condition: {
-                classify: cid,
-                typeId: "S1"
-            },
-            pageNum: String(page),
-            pageSize: 40
+        let html = globalThis.yanzheng(input, rule);            
+        let d = [];
+        let p = rule.一级二.split(';');
+        let arr = pdfa(html, p[0]);//列表
+        arr.forEach(it => {
+            d.push({
+                title: pdfh(it, p[1]),//标题
+                pic_url: pdfh(it, p[2]),//图片
+                desc: pdfh(it, p[3]),//描述
+                url: pdfh(it, p[4]),//链接                
+            });
+        });            
+        setResult(d);
+    }),    
+    二级: {
+        title: 'h1&&Text;.module-info-tag-link:eq(2)&&Text',
+        img: 'img.lazyload&&data-original||src',
+        desc: '.module-info-item:eq(4)&&Text;.module-info-item:eq(3)&&Text;.module-info-tag-link:eq(1)&&Text;.module-info-item:eq(2)&&Text;.module-info-item:eq(1)&&Text',
+        content: 'meta[name^=description]&&content',
+        tabs: '.module-tab-items-box span',
+        tab_text: 'body&&Text',
+        lists: '.module-play-list-content:eq(#id)&&a',
+        list_text: 'body&&Text',
+        list_url: 'a&&href',
+    },    
+    搜索: $js.toString(() => {    
+        let html = globalThis.yanzheng(MY_URL, rule);
+        let d = [];
+        let list = pdfa(html, '.module-card-item');
+        list.forEach(it => {
+            let title = pdfh(it, '.module-card-item-title&&Text');            
+            let pic = pdfh(it, '.lazyload&&data-original');
+            let remark = pdfh(it, '.module-item-note&&Text') || '';
+            let href = pdfh(it, 'a&&href');
+            let score = pdfh(it, '.module-info-item&&Text') || '';                        
+            d.push({
+                title: title,
+                img: pic,
+                desc: remark + ' ' + score,
+                url: href
+            });
         });
-        
-        try {
-            const url = 'https://new.tianjinzhitongdaohe.com/api/v1/app/screen/screenMovie';
-            const response = request(url, {
-                method: 'POST',
-                headers: headers,
-                body: payload
-            });
-            const data = JSON.parse(response);
-            VODS = [];
-            
-            if (data.data && data.data.records) {
-                data.data.records.forEach(vod => {
-                    VODS.push({
-                        vod_id: vod.id,
-                        vod_name: vod.name,
-                        vod_pic: vod.cover,
-                        vod_remarks: `${vod.totalEpisode || 0}集`
-                    });
-                });
-            }
-        } catch (e) {
-            console.error("一级列表错误:", e);
-            VODS = [];
-        }
-    }),
-    
-    二级: $js.toString(() => {
-        const orId = typeof OR_ID !== 'undefined' ? OR_ID : '';
-        const did = orId;
-        const headers = {
-            "Cache-Control": "no-cache",
-            "Content-Type": "application/json;charset=UTF-8",
-            "User-Agent": "okhttp/4.12.0"
-        };
-        
-        try {
-            const detailPayload = JSON.stringify({
-                id: did,
-                source: 0,
-                typeId: "S1",
-                userId: "223664"
-            });
-            
-            const detailUrl = 'https://new.tianjinzhitongdaohe.com/api/v1/app/play/movieDetails';
-            const detailResponse = request(detailUrl, {
-                method: 'POST',
-                headers: headers,
-                body: detailPayload
-            });
-            
-            const detailData = JSON.parse(detailResponse).data || {};
-            let playList = '';
-            let playFrom = '蓝莓短剧';
-            let content = detailData.introduce || '暂无剧情介绍';
-            
-            if (detailData.episodeList && detailData.episodeList.length > 0) {
-                const episodes = detailData.episodeList.map(ep => {
-                    return `${ep.episode}$${did}@${ep.id}`;
-                });
-                playList = episodes.join('#');
-            }
-            
-            VOD = {
-                vod_id: did,
-                vod_name: detailData.name || '未知名称',
-                vod_pic: detailData.cover || '',
-                vod_content: content,
-                vod_play_from: playFrom,
-                vod_play_url: playList || '暂无播放地址$0'
-            };
-        } catch (e) {
-            console.error("详情解析错误:", e);
-            VOD = {
-                vod_name: '加载失败',
-                vod_content: '详情加载失败，请稍后重试',
-                vod_play_from: '暂无资源',
-                vod_play_url: '暂无播放地址$0'
-            };
-        }
-    }),
-    
-    搜索: $js.toString(() => {
-        const key = typeof KEY !== 'undefined' ? KEY : '';
-        const page = typeof MY_PAGE !== 'undefined' ? MY_PAGE : 1;
-        const headers = {
-            "Cache-Control": "no-cache",
-            "Content-Type": "application/json;charset=UTF-8",
-            "User-Agent": "okhttp/4.12.0"
-        };
-        
-        const payload = JSON.stringify({
-            condition: {
-                typeId: "S1",
-                value: key
-            },
-            pageNum: String(page),
-            pageSize: 40
-        });
-        
-        try {
-            const url = 'https://new.tianjinzhitongdaohe.com/api/v1/app/search/searchMovie';
-            const response = request(url, {
-                method: 'POST',
-                headers: headers,
-                body: payload
-            });
-            const data = JSON.parse(response);
-            VODS = [];
-            
-            if (data.data && data.data.records) {
-                data.data.records.forEach(vod => {
-                    VODS.push({
-                        vod_id: vod.id,
-                        vod_name: vod.name,
-                        vod_pic: vod.cover,
-                        vod_remarks: `更新时间${vod.year || '未知'}`
-                    });
-                });
-            }
-        } catch (e) {
-            console.error("搜索错误:", e);
-            VODS = [];
-        }
-    }),
-    
-    lazy: $js.toString(() => {
-        const input = typeof INPUT !== 'undefined' ? INPUT : '';
-        const [videoId, episodeId] = input.split('@');
-        const headers = {
-            "Cache-Control": "no-cache",
-            "Content-Type": "application/json;charset=UTF-8",
-            "User-Agent": "okhttp/4.12.0"
-        };
-        
-        try {
-            const payload = JSON.stringify({
-                episodeId: episodeId,
-                id: videoId,
-                source: 0,
-                typeId: "S1",
-                userId: "223664"
-            });
-            
-            const url = 'https://new.tianjinzhitongdaohe.com/api/v1/app/play/movieDetails';
-            const response = request(url, {
-                method: 'POST',
-                headers: headers,
-                body: payload
-            });
-            const data = JSON.parse(response);
-            
-            INPUT = {
-                parse: 0,
-                url: data.data && data.data.url ? data.data.url : '',
-                header: JSON.stringify({
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.87 Safari/537.36'
-                })
-            };
-        } catch (e) {
-            console.error("播放地址获取错误:", e);
-            INPUT = {
-                parse: 0,
-                url: '',
-                header: JSON.stringify({})
-            };
-        }
-    })
-};
+        setResult(d);
+    }), 
+}

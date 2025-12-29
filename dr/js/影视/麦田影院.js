@@ -2,8 +2,8 @@
 var rule = {
     类型: '影视',//影视|听书|漫画|小说
     title: '麦田影院',
-    //host: 'https://www.mtyy2.com',
-    host: `https://www.mtyy${(r => r < 0.5 ? '2' : ['1','3','4','5','6','7','8','9'][(r-0.5)*16|0])(Math.random())}.com`,
+    host: 'https://www.mtyy2.com',
+    //host: `https://www.mtyy${(r => r < 0.5 ? '2' : ['1','3','4','5','6','7','8','9'][(r-0.5)*16|0])(Math.random())}.com`,
     url: '/vodshow/fyclass-fyfilter.html',
     searchUrl: "/index.php/ajax/suggest?mid=1&wd=**&limit=50",
     detailUrl:  "/voddetail/fyid.html",
@@ -20,6 +20,7 @@ var rule = {
     filter_url: '{{fl.地区}}-{{fl.排序}}-{{fl.类型}}-{{fl.语言}}----fypage---{{fl.年份}}',
     headers: {
         'User-Agent': 'MOBILE_UA',
+        'Cookie':'',
     },
     timeout: 5000,
     class_parse: '.head-nav li;a&&Text;a&&href;/(\\d+)\.html',
@@ -34,7 +35,7 @@ var rule = {
         img: '.this-pic-bj&&style',
         desc: '.gen-search-form li:eq(1)&&Text;.gen-search-form li:eq(4)&&Text;.gen-search-form li:eq(5)&&Text;.gen-search-form li:eq(2)&&Text;.gen-search-form li:eq(3)&&Text',
         content: '.gen-search-form li:eq(11)&&Text',
-        tabs: '.anthology-tab a',
+        tabs: '.anthology-tab a',        
         lists: '.anthology-list-play:eq(#id)&&a',
         tab_text: 'body&&Text',
         list_text: 'body&&Text',

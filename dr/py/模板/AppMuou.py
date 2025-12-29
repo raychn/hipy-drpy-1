@@ -1,27 +1,29 @@
+# 本资源来源于互联网公开渠道，仅可用于个人学习爬虫技术。
+# 严禁将其用于任何商业用途，下载后请于 24 小时内删除，搜索结果均来自源站，本人不承担任何责任。
+
 """
-@header({
-  searchable: 1,
-  filterable: 1,
-  quickSearch: 1,
-  title: 'AppMuou',
-  lang: 'hipy'
-})
+示例
+{
+    "key": "key",
+    "name": "name",
+    "type": 3,
+    "api": "./AppMuou.py",
+    "ext": {
+        "host": "https://muouapp.oss-cn-hangzhou.domain.com/xxx/xxx.txt",  应用域名(支持txt或域名)
+        "name": "xxx", 应用名称
+        "version": "4.2.0"  应用版本号
+    }
+}
 """
 
-# -*- coding: utf-8 -*-
-# 仅可用于学习用途
 from Crypto.Cipher import AES
-try:
-    # from base.spider import Spider as BaseSpider
-    from base.spider import BaseSpider
-except ImportError:
-    from t4.base.spider import BaseSpider
+from base.spider import Spider
 from Crypto.Util.Padding import unpad
 import re,sys,time,json,base64,hashlib,urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 sys.path.append('..')
 
-class Spider(BaseSpider):
+class Spider(Spider):
     host,name,version,data_key,data_iv,cms_host,jx_api,playerinfo,= '', '', '', '', '', '', '',[]
     headers = {
         'User-Agent': "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.105 MUOUAPP/10.8.4506.400",
@@ -37,7 +39,7 @@ class Spider(BaseSpider):
 
     def init(self, extend=""):
         try:
-            config = json.loads(self.extend.strip())
+            config = json.loads(extend)
         except (json.JSONDecodeError, TypeError):
             config = {}
         name = config.get("name", "muou")
@@ -296,7 +298,7 @@ class Spider(BaseSpider):
         return s
 
     def getName(self):
-        return 'AppMuou'
+        pass
 
     def isVideoFormat(self, url):
         pass

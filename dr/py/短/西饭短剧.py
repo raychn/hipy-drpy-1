@@ -121,6 +121,34 @@ class Spider(Spider):
         result['total'] = 999999
         return result
 
+    def shouldUseAutoNumbering(self, episodeList, vod_name):
+        if not episodeList:
+            return False
+            
+        valid_episode_count = 0
+        for ep in episodeList:
+            title = ep.get('title', '')
+            
+            patterns = [
+                r'第\s*\d+\s*集', r'第\s*\d+\s*章', r'第\s*\d+\s*话',
+                r'\d+\s*集', r'\d+\s*章', r'\d+\s*话',
+                r'EP\s*\d+', r'ep\s*\d+', r'Ep\s*\d+'
+            ]
+            
+            has_episode_pattern = False
+            for pattern in patterns:
+                if re.search(pattern, title):
+                    has_episode_pattern = True
+                    break
+            
+            if has_episode_pattern:
+                valid_episode_count += 1
+        
+        if valid_episode_count > len(episodeList) / 2:
+            return False
+            
+        return True
+
     def detailContent(self, ids):
         did = ids[0]
         result = {}
@@ -141,12 +169,28 @@ class Spider(Spider):
                 
                 playUrls = []
                 episodeList = result_data.get('episodeList', [])
-                for ep in episodeList:
-                    playUrls.append(f"{ep.get('title', '')}${ep.get('playUrl', '')}")
+                
+                vod_name = result_data.get('title', '')
+                
+                use_auto_numbering = self.shouldUseAutoNumbering(episodeList, vod_name)
+                
+                for i, ep in enumerate(episodeList):
+                    original_title = ep.get('title', '')
+                    play_url = ep.get('playUrl', '')
+                    
+                    if use_auto_numbering:
+                        episode_title = f"第{i+1}集"
+                    else:
+                        episode_title = self.extractEpisodeInfo(original_title, vod_name)
+                        
+                        if not episode_title:
+                            episode_title = f"第{i+1}集"
+                    
+                    playUrls.append(f"{episode_title}${play_url}")
                 
                 vod_info = {
                     "vod_id": did,
-                    "vod_name": result_data.get('title', ''),
+                    "vod_name": vod_name,
                     "vod_pic": result_data.get('coverImageUrl', ''),
                     "vod_content": result_data.get('qualification', result_data.get('desc', '暂无简介')),
                     "vod_remarks": f"{result_data.get('total', '')}集",
@@ -160,6 +204,46 @@ class Spider(Spider):
         
         result['list'] = videos
         return result
+
+    def extractEpisodeInfo(self, title, vod_name):
+        if title == vod_name:
+            return None
+            
+        patterns = [
+            (r'第\s*(\d+)\s*集', '第{}集'),
+            (r'第\s*(\d+)\s*章', '第{}章'),
+            (r'第\s*(\d+)\s*话', '第{}话'),
+            (r'(\d+)\s*集', '第{}集'),
+            (r'(\d+)\s*章', '第{}章'),
+            (r'(\d+)\s*话', '第{}话'),
+            (r'EP\s*(\d+)', '第{}集'),
+            (r'ep\s*(\d+)', '第{}集'),
+            (r'Ep\s*(\d+)', '第{}集')
+        ]
+        
+        for pattern, format_str in patterns:
+            match = re.search(pattern, title)
+            if match:
+                number = match.group(1)
+                return format_str.format(number)
+        
+        if vod_name and title.startswith(vod_name):
+            cleaned_title = title[len(vod_name):].strip()
+            
+            separators = ['：', ':', '-', '—', '——', ' ']
+            for sep in separators:
+                if cleaned_title.startswith(sep):
+                    cleaned_title = cleaned_title[len(sep):].strip()
+                    break
+            
+            if cleaned_title:
+                for pattern, format_str in patterns:
+                    match = re.search(pattern, cleaned_title)
+                    if match:
+                        number = match.group(1)
+                        return format_str.format(number)
+        
+        return None
 
     def playerContent(self, flag, id, vipFlags):
         result = {}
